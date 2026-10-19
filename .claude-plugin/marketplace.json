@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "amadeus-travel-toolkit",
+  "description": "A plugin marketplace bringing Amadeus travel expertise to AI agents.",
+  "owner": {
+    "name": "Amadeus"
+  },
+  "plugins": [
+    {
+      "name": "amadeus-travel-builder",
+      "source": "./plugins/amadeus-travel-builder"
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+name: 🐛 Bug Report
+description: Report a skill that led your agent to write wrong code
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! These skills are documentation an
+        agent reads before writing your code, so the most useful report shows us the
+        prompt you gave and the code you got back.
+
+  - type: input
+    id: skill
+    attributes:
+      label: Skill
+      description: Which skill does this concern? See the plugin's README for the skills it ships. Leave it broad if you're not sure, or if it spans several.
+      placeholder: "e.g. flight-search, or: not sure"
+    validations:
+      required: false
+
+  - type: input
+    id: agent
+    attributes:
+      label: Agent
+      description: Which coding agent loaded the skill, and which version?
+      placeholder: "e.g. Claude Code 2.0.14, Cursor, GitHub Copilot CLI"
+    validations:
+      required: true
+
+  - type: textarea
+    id: prompt
+    attributes:
+      label: Prompt
+      description: What did you ask the agent to build?
+      placeholder: "Build me a flight comparison page for round-trips between London and New York"
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: What the agent produced
+      description: The generated code, or the part of it that's wrong
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What's wrong with it
+      description: Wrong endpoint, missing required parameter, response shape that doesn't match reality, invented credentials - and what it should have been instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: API response or error
+      description: If the generated code ran, what did the API return?
+      render: shell
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Any other information that might be helpful
+      placeholder: Screenshots, configuration, workarounds, etc.

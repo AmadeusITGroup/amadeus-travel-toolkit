@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "amadeus-travel-builder",
+  "version": "1.0.0",
+  "description": "Build applications including travel-related capabilities on live Amadeus data with Amadeus Travel Builder APIs. Expose flight search, tour and activity recommendations, real-time pricing and booking links, airport and city lookup, and other travel capabilities with no API docs to read first.",
+  "icon": "icon.png",
+  "author": {
+    "name": "Amadeus",
+    "url": "https://github.com/AmadeusITGroup"
+  },
+  "homepage": "https://github.com/AmadeusITGroup/amadeus-travel-toolkit",
+  "repository": "https://github.com/AmadeusITGroup/amadeus-travel-toolkit",
+  "supportUrl": "https://github.com/AmadeusITGroup/amadeus-travel-toolkit/issues",
+  "privacyPolicyUrl": "https://amadeus.com/en/policies/travel-builder/privacy",
+  "termsOfServiceUrl": "https://amadeus.com/en/policies/travel-builder/terms",
+  "license": "Apache-2.0",
+  "keywords": [
+    "amadeus",
+    "travel",
+    "flights",
+    "flight-search",
+    "fare-comparison",
+    "tours",
+    "activities",
+    "experiences",
+    "recommendations",
+    "airline",
+    "iata",
+    "icao",
+    "airport",
+    "city",
+    "autocomplete"
+  ]
+}
