@@ -17,40 +17,14 @@ For other agents, see the [marketplace README](../../README.md#installation).
 
 ## What's in it
 
-<table>
-  <thead>
-    <tr>
-      <th width="200" align="left">Skill</th>
-      <th align="left">What you can build</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><a href="skills/flight-search/SKILL.md"><code>flight-search</code></a></td>
-      <td>Flight comparison and fare-aggregation features - one-way, return, multi-city. Priced offers with merchant deep links.</td>
-    </tr>
-    <tr>
-      <td><a href="skills/activity-search/SKILL.md"><code>activity-search</code></a></td>
-      <td>Tours-and-activities feeds - top activities plus smart, filterable recommendations.</td>
-    </tr>
-    <tr>
-      <td><a href="skills/airline-code-lookup/SKILL.md"><code>airline-code-lookup</code></a></td>
-      <td>Airline-code lookups - resolve IATA / ICAO codes to human-readable airline names.</td>
-    </tr>
-    <tr>
-      <td><a href="skills/airport-city-search/SKILL.md"><code>airport-city-search</code></a></td>
-      <td>Flight-booking location pickers and autocomplete - airport and city search by name, plus by-ID lookup.</td>
-    </tr>
-    <tr>
-      <td><a href="skills/nearest-airports/SKILL.md"><code>nearest-airports</code></a></td>
-      <td>Nearest-airport lookups - the most relevant airports near a lat/lon.</td>
-    </tr>
-    <tr>
-      <td><a href="skills/city-search/SKILL.md"><code>city-search</code></a></td>
-      <td>City search and autocomplete - by name, including cities with no airport, with optional airport expansion.</td>
-    </tr>
-  </tbody>
-</table>
+| Skill | What you can build |
+| --- | --- |
+| [`flight-search`](skills/flight-search/SKILL.md) | Flight comparison and fare-aggregation features - one-way, return, multi-city. Priced offers with merchant deep links. |
+| [`activity-search`](skills/activity-search/SKILL.md) | Tours-and-activities feeds - top activities plus smart, filterable recommendations. |
+| [`airline-code-lookup`](skills/airline-code-lookup/SKILL.md) | Airline-code lookups - resolve IATA / ICAO codes to human-readable airline names. |
+| [`airport-city-search`](skills/airport-city-search/SKILL.md) | Flight-booking location pickers and autocomplete - airport and city search by name, plus by-ID lookup. |
+| [`nearest-airports`](skills/nearest-airports/SKILL.md) | Nearest-airport lookups - the most relevant airports near a lat/lon. |
+| [`city-search`](skills/city-search/SKILL.md) | City search and autocomplete - by name, including cities with no airport, with optional airport expansion. |
 
 ## How to use
 
