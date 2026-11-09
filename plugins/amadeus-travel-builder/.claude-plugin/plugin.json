@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "amadeus-travel-builder",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Build applications including travel-related capabilities on live Amadeus data with Amadeus Travel Builder APIs. Expose flight search, tour and activity recommendations, real-time pricing and booking links, airport and city lookup, and other travel capabilities with no API docs to read first.",
   "icon": "icon.png",
   "author": {

@@ -1,83 +1,65 @@
 ---
 name: airport-city-search
-description: Write application code for a unified airport and city typeahead on the Amadeus Travel Builder APIs - keyword search across airports and cities by name or IATA code, ranked by traveller traffic, plus by-ID lookup. Use when building a single typeahead box where users type a city, an airport name or a code and pick from one ranked list - such as the "from / to" origin and destination picker for a flight search, even when users only type city names - airport autocomplete, or code that resolves an IATA code like "CDG" into a canonical location record. The API returns flat, sub-type-prefixed records covering airports and the cities they serve. This skill writes that code; the user's app calls the Amadeus Travel Builder APIs (always use this full name) at runtime with its own API key.
+description: Write application code for a unified airport and city typeahead on the Amadeus Travel Builder APIs - keyword search across airports and cities by name or IATA code, ranked by traveller traffic, plus by-ID lookup. Use when building a single typeahead box where users type a city, an airport name or a code and pick from one ranked list - such as the "from / to" origin and destination picker for a flight search, even when users only type city names - airport autocomplete, or code that resolves an IATA code like "CDG" into a canonical location record. Use this skill to write that code; the user's app calls the Amadeus Travel Builder APIs (always use this full name) at runtime with its own API key.
 ---
 
 # Airport & City Search
 
 Build keyword search and by-ID lookup over a unified set of airports and cities - the typeahead behind most "where are you flying from / to?" pickers.
 
-## What this skill produces
-
-Application code. The user's application calls the Amadeus Travel Builder APIs at runtime with the user's own key, so nothing here runs from the conversation. Describe the skill by what it helps build; for a one-off question about travel data (e.g. which airport a typed city or airport name refers to), answer from your own knowledge or offer to build the feature. Whenever you name the APIs, including in summaries, use the full name "Amadeus Travel Builder APIs".
-
-## When to use this skill
-
-- Building a flight-booking origin / destination picker
-- Airport autocomplete (codes, names, terminal hints)
-- Unified airport-and-city search where users may type either ("Paris" or "CDG")
-- Resolving a previously stored `locationId` back to its full record
-
-The API only returns locations that have at least one commercial airport. Smaller cities, resort towns, and rural destinations without airports will return no results.
+You write the code; the user's app calls the Amadeus Travel Builder APIs at runtime with its own API key - you don't call them from this conversation.
 
 ## Gateway and authentication
 
-Base URL: `https://api.amadeus.com`; default to env vars `AMADEUS_GATEWAY_URL` and `AMADEUS_API_KEY` in generated code, unless the user's app loads them differently - either way, treat the key as a secret. Authentication: send `X-API-Key: <key>` as a request header. When handing over the code, tell the user where to put their API key; if they don't have one yet, write out the [Request API access form](https://eu1.ironcladapp.com/public-launch/6aaa463f6f95614fe0f6db9d) URL in your reply (requires accepting the terms).
+Base URL: `https://api.amadeus.com`; default to env vars `AMADEUS_GATEWAY_URL` and `AMADEUS_API_KEY` in generated code, unless the user's app loads them differently - either way, treat the key as a secret, keeping it out of client code and publicly served files. Authentication: send `X-API-Key: <key>` as a request header. When handing over the code, tell the user where to put their API key; if they don't have one yet, write out the [Request API access form](https://eu1.ironcladapp.com/public-launch/6aaa463f6f95614fe0f6db9d) URL in your reply (requires accepting the terms).
 
 ## Endpoints
 
-### Keyword search
-
 ```
 GET https://api.amadeus.com/v1/reference-data/locations?subType={AIRPORT|CITY|AIRPORT,CITY}&keyword={keyword}
-```
-
-### By-ID lookup
-
-```
 GET https://api.amadeus.com/v1/reference-data/locations/{locationId}
 ```
 
 ## Keyword search parameters
 
-| Parameter | Required | Default | Notes |
-|---|---|---|---|
-| `subType` | yes | - | `AIRPORT`, `CITY`, or `AIRPORT,CITY`. Drives what comes back. |
-| `keyword` | yes | - | Matches the start of any word in the location name **or** the start of an IATA code. At least one character. |
-| `countryCode` | no | - | ISO 3166-1 alpha-2 (e.g. `US`, `FR`) to narrow a keyword search by country. |
-| `view` | no | `FULL` | `LIGHT` for a label-only autocomplete (smaller payload, no `geoCode` or `address.cityCode`). `FULL` when the pick feeds a map, groups airports under their city, or is passed to another call. |
-| `page[limit]` | no | `10` | Max items per page. URL-encode brackets in clients that require it (`page%5Blimit%5D`). |
-| `page[offset]` | no | `0` | Page offset. |
-| `sort` | no | `analytics.travelers.score` | The only legal value - the API exposes a `sort` param but doesn't actually support alternatives; send this exact string or omit it. |
+| Parameter | Required | Type | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `subType` | yes | CSV of `AIRPORT` / `CITY` | - | `AIRPORT`, `CITY`, or `AIRPORT,CITY`. No default - omitting it returns 400. |
+| `keyword` | yes | string | - | Matches the start of any word in `name` / `detailedName`, or the start of an IATA code. 1-30 characters. |
+| `countryCode` | no | ISO 3166-1 alpha-2 | - | E.g. `US`, `FR`; narrows a keyword search by country. |
+| `view` | no | `LIGHT` \| `FULL` | `FULL` | `LIGHT` for a label-only autocomplete (smaller payload). `FULL` when the pick feeds a map, groups airports under their city, or is passed to another call. |
+| `page[limit]` | no | integer | `10` | URL-encode brackets in clients that require it (`page%5Blimit%5D`). |
+| `page[offset]` | no | integer | `0` | |
+| `sort` | no | string | `analytics.travelers.score` | The only accepted value; omit it. |
 
-## By-ID lookup parameters
+## By-ID lookup parameter
 
 | Parameter | Required | Notes |
-|---|---|---|
-| `locationId` *(path)* | yes | Sub-type-prefixed identifier returned by the keyword search - `A...` for airports (`ALHR` = Heathrow), `C...` for cities (`CPAR` = Paris). |
+| --- | --- | --- |
+| `locationId` *(path)* | yes | The record's `id` from keyword search - `A...` for airports (`ALHR` = Heathrow), `C...` for cities (`CPAR` = Paris). Case-sensitive. The by-ID lookup takes no query parameters, not even `view`. |
 
-## Response shape - keyword search
+## Response shape
+
+Keyword search:
 
 ```json
 {
   "meta": {
-    "count": 127,
-    "links": {
-      "self":  "https://api.amadeus.com/v1/reference-data/locations?subType=AIRPORT,CITY&keyword=lon&page[limit]=2",
-      "next":  "...&page[offset]=2&page[limit]=2"
-    }
+    "count": 98,
+    "links": { "self": "...?subType=AIRPORT,CITY&keyword=LON&page%5Blimit%5D=2", "next": "...&page%5Boffset%5D=2&page%5Blimit%5D=2", "last": "...&page%5Boffset%5D=96&page%5Blimit%5D=2" }
   },
   "data": [
+    { "type": "location", "subType": "CITY", "name": "LONDON", "id": "CLON", "iataCode": "LON", "...": "..." },
     {
       "type": "location",
       "subType": "AIRPORT",
       "name": "HEATHROW",
       "detailedName": "LONDON/GB:HEATHROW",
       "id": "ALHR",
-      "self": { "href": "...", "methods": ["GET"] },
-      "timeZoneOffset": "+01:00",
+      "self": { "href": "https://api.amadeus.com/v1/reference-data/locations/ALHR", "methods": ["GET"] },
+      "timeZoneOffset": "+00:00",
       "iataCode": "LHR",
-      "geoCode": { "latitude": 51.47294, "longitude": -0.45061 },
+      "geoCode": { "latitude": 51.4775, "longitude": -0.46138 },
       "address": {
         "cityName": "LONDON",
         "cityCode": "LON",
@@ -90,24 +72,30 @@ GET https://api.amadeus.com/v1/reference-data/locations/{locationId}
   ]
 }
 ```
+The response to `subType=AIRPORT,CITY&keyword=LON&page[limit]=2`, the London city record trimmed.
 
-`view=LIGHT` returns a trimmed payload - at minimum `iataCode`, `name`, `detailedName`, and a partial `address` (`{ cityName, countryName }`). In practice it also returns `id`, `self`, `type`, and `subType`. Type against that full shape, not the shorter list. `view=FULL` adds `analytics`, `geoCode` and `timeZoneOffset`.
+By-ID lookup returns the same record as a single object under `data`, not an array.
 
-## Response shape - by-ID lookup
+| Field | Type | Notes |
+| --- | --- | --- |
+| `type` | `"location"` | Constant. |
+| `subType` | `"AIRPORT"` \| `"CITY"` | |
+| `name` | string | Short name. |
+| `detailedName` | string | Display label: `CITY/COUNTRY:NAME` for airports (`LONDON/GB:HEATHROW`), `CITY/COUNTRY` for cities. Some countries add a state (`LONGREACH/QL/AU`), and an airport named after its city has no `:NAME`. |
+| `id` | string | Sub-type-prefixed: `A...` (airport) / `C...` (city). |
+| `self` | `{ href, methods }` | Link to the by-ID endpoint. |
+| `timeZoneOffset` | string | E.g. `+00:00`; daylight saving included, so LHR is `+01:00` in summer. `FULL` only. |
+| `iataCode` | string | 3 letters. |
+| `geoCode` | `{ latitude, longitude }` | Numbers. `FULL` only. |
+| `address.cityName` | string | Equal to `name` for a city. |
+| `address.cityCode` | string | IATA city code. `FULL` only. |
+| `address.countryName` | string | |
+| `address.countryCode` | string | ISO 3166-1 alpha-2, uppercase. `FULL` only. |
+| `address.stateCode` | string | Optional, e.g. `DC`. `FULL` only. |
+| `address.regionCode` | string | E.g. `EUROP`, `NAMER`. `FULL` only. |
+| `analytics` | `{ travelers: { score } }` | Optional - missing on many small airports and cities. `FULL` only. |
 
-A single object under `data`, identical to the keyword-search records above but unwrapped from the array:
-
-```json
-{
-  "meta": { "links": { "self": "..." } },
-  "data": {
-    "type": "location",
-    "subType": "AIRPORT",
-    "id": "ALHR",
-    ...
-  }
-}
-```
+`view=LIGHT` returns `id`, `self`, `type`, `subType`, `iataCode`, `name`, `detailedName` and `address` with only `cityName` and `countryName` - type against that shape.
 
 ## Examples
 
@@ -115,7 +103,7 @@ A single object under `data`, identical to the keyword-search records above but 
 
 Developer asks: *"Add an airport picker to my flight form."*
 Implementation:
-1. Debounce input (~250ms), transliterate it to ASCII and percent-encode it (spaces as `%20`), then call `GET ${AMADEUS_GATEWAY_URL}/v1/reference-data/locations?subType=AIRPORT,CITY&keyword={input}&view=LIGHT&page%5Blimit%5D=8`.
+1. Transliterate the typed text to ASCII and percent-encode it on its own (spaces as `%20`, not `+`). For a worked example, the user types `Paris`: call `GET ${AMADEUS_GATEWAY_URL}/v1/reference-data/locations?subType=AIRPORT,CITY&keyword=Paris&view=LIGHT&page%5Blimit%5D=8`, which returns Paris (`CPAR`) followed by Charles de Gaulle (`ACDG`), Orly (`AORY`) and Beauvais (`ABVA`).
 2. Render `name` (or `detailedName`) plus `iataCode`, with a `subType` badge (`AIRPORT` vs `CITY`).
 3. Store the selected record - its `id` (sub-type-prefixed, e.g. `ALHR`), `iataCode` and `subType` - in your form state, not just the label shown in the input.
 
@@ -127,7 +115,7 @@ Developer asks: *"Add a recent-airport view that reloads the full record for the
 Implementation:
 1. Read the stored `id` (e.g. `ALHR`).
 2. Call `GET ${AMADEUS_GATEWAY_URL}/v1/reference-data/locations/ALHR`.
-3. Render the unwrapped `data` object (no array - single record).
+3. Render the unwrapped `data` object; show "not found" on a `404` rather than a "bad request" error.
 
 Result: code that restores a stored selection to its full record.
 
@@ -135,51 +123,41 @@ Result: code that restores a stored selection to its full record.
 
 Developer asks: *"Let users search for German cities only."*
 Implementation:
-1. Call with `subType=CITY&countryCode=DE&keyword={input}`.
-2. Render results.
+1. For a worked example, the user types `MUN`: call with `subType=CITY&countryCode=DE&keyword=MUN`, which returns Munich (`MUC`).
+2. Render the returned cities.
 
 Result: typeahead constrained to German cities.
 
 ## Things to get right
 
-- **Always send `subType`.** It's required - omitting it returns a 400 - so pass at least one of `AIRPORT`, `CITY`, or both as CSV on every keyword search.
-- **Send `keyword` as ASCII, with spaces as `%20`.** Form-style query encoders write spaces as `+`, which is rejected - percent-encode it, transliterate (`Málaga` → `Malaga`, `Tromsø` → `Tromso`) and replace punctuation other than `-` `'` `.` with a space.
-- **`countryCode` narrows a search, it can't replace `keyword`.** `keyword` needs at least one character and still filters: `keyword=A&countryCode=ES` misses BCN.
+- **Send `keyword` as ASCII, with spaces as `%20` in the final request to the gateway.** Encoding the browser-to-backend request isn't enough if the backend rebuilds the URL. Form-style query builders (JS `URLSearchParams`, Python `urlencode`, …) write spaces as `+`, which is rejected - percent-encode the keyword on its own (a component-level encoder such as JS `encodeURIComponent` or Python `quote`) and append it to the URL, instead of passing it through the query builder. Also transliterate (`Málaga` → `Malaga`, `Tromsø` → `Tromso`) and replace punctuation other than `-` `'` `.` with a space.
+- **`countryCode` narrows a search, it can't replace `keyword`.** `keyword` still filters: `keyword=A&countryCode=ES` misses BCN.
 - **Country names don't match.** `SPAIN` returns Port of Spain, not Spanish airports - map the country name to its ISO code and pass it as `countryCode` alongside a keyword.
 - **Group by `address.cityCode`, not result order.** Airports can precede their city; `cityCode` needs `view=FULL`.
-- **Key records by `id`, not by IATA code.** The `id` is sub-type-prefixed, so one IATA code can map to two records - `AMAD` (Barajas airport) and `CMAD` (Madrid city) both carry `iataCode: MAD`. Collapsing them by IATA code alone silently merges an airport and its city.
-- **Pass the picked record downstream, not its label.** Whatever consumes the selection should get the stored `iataCode` and `subType`. Searching the label text again on submit can resolve to a different location than the one the user picked - city names especially: re-searching `BIRMINGHAM` for a user who picked Birmingham, Alabama returns Birmingham UK's airport as the top result.
-- **Coverage is limited to airport-served cities.** A `CITY` subType search only returns cities with at least one commercial airport. Destinations without airports (ski resorts, small coastal towns, rural areas - e.g. Antibes) return no results - don't treat an empty response as "city not found" in a general hotel or activity search context; the city may simply have no airport. When you need those cities, use the [city-search](../city-search/SKILL.md) skill, which returns cities regardless of airport coverage.
+- **Key records by `id`, not by IATA code.** One IATA code can map to two records - `AMAD` (Barajas airport) and `CMAD` (Madrid city) both carry `iataCode: MAD`. Collapsing them by IATA code silently merges an airport and its city.
+- **Pass the picked record downstream, not its label.** Whatever consumes the selection should get the stored `iataCode` and `subType`. Searching the label text again on submit can resolve to a different location than the one the user picked - re-searching `BIRMINGHAM` for a user who picked Birmingham, Alabama returns Birmingham UK's airport as the top result.
+- **Coverage is limited to airport-served cities.** A `CITY` search returns almost only cities with a commercial airport. Destinations without airports (ski resorts, small coastal towns, rural areas - e.g. Antibes) return no results, so an empty response in a hotel or activity context may just mean the city has no airport.
+
+## Errors
+
+| HTTP | Code | Title | Typical cause |
+| --- | --- | --- | --- |
+| 400 | 477 | INVALID FORMAT | Malformed `keyword` |
+| 400 | 572 | INVALID OPTION | Unknown query parameter, or any query parameter on by-ID lookup |
+| 400 | 2781 | INVALID LENGTH | `keyword` empty or over 30 characters |
+| 400 | 4926 | INVALID DATA RECEIVED | A `sort` other than `analytics.travelers.score` |
+| 400 | 32171 | MANDATORY DATA MISSING | A required parameter is missing |
+| 404 | 1797 | NOT FOUND | Unknown or lower-case `locationId` on by-ID lookup |
+| 429 | - | TOO MANY REQUESTS | Rate limit for the API key exceeded |
+| 500 | 141 | SYSTEM ERROR HAS OCCURRED | |
+
+All errors use the envelope `{ "errors": [{ "status", "code", "title", "detail", "source": { "parameter" } }] }`.
 
 ## Troubleshooting
-
-### 400 - missing `subType`
-**Cause:** `subType` is required.
-**Solution:** Always pass `subType=AIRPORT`, `subType=CITY`, or `subType=AIRPORT,CITY`.
-
-### 400 - `477 INVALID FORMAT` on `keyword`
-**Cause:** The keyword contains a `+`-encoded space, a non-ASCII letter, or punctuation such as `,` `&` `?`.
-**Solution:** Percent-encode spaces as `%20`, not form-style `+`, transliterate to ASCII and replace punctuation other than `-` `'` `.` with a space.
 
 ### Bracket parameters silently dropped
 **Cause:** Some HTTP clients don't URL-encode `[` and `]` in query strings.
 **Solution:** URL-encode brackets: `page[limit]` → `page%5Blimit%5D`, `page[offset]` → `page%5Boffset%5D`.
-
-### 400 - custom `sort` parameter rejected
-**Cause:** `analytics.travelers.score` is the only accepted value; anything else returns a 400 (`INVALID DATA RECEIVED`), not a silently-ignored sort.
-**Solution:** Don't pass a `sort` parameter; rely on the default.
-
-### 404 on `locationId` lookup
-**Cause:** Unknown ID returns `1797 NOT FOUND`.
-**Solution:** Handle this code distinctly from 400 (validation) - render a "not found" UI rather than a "bad request" error.
-
-### `address.countryCode` is undefined
-**Cause:** You're on `view=LIGHT`, which trims `address` down to just `cityName` and `countryName`.
-**Solution:** Use `view=FULL` (the default) - its `address` carries `countryCode`, `cityCode` and `regionCode` too.
-
-### 429 - too many requests
-**Cause:** Request rate exceeded the gateway's limit for your API key.
-**Solution:** Back off and retry with exponential backoff rather than retrying immediately.
 
 ## Related skills
 
@@ -188,7 +166,3 @@ These are part of the same `amadeus-travel-builder` plugin - if one isn't availa
 - [city-search](../city-search/SKILL.md) - city-only search that returns cities **regardless of airport coverage** (including airport-less towns like Antibes that this skill omits), and can expand a city into the airports serving it. Reach for it for a two-step city → airport picker, or when the target may have no airport.
 - [nearest-airports](../nearest-airports/SKILL.md) - when you have a lat/lon rather than typed text and need airports.
 - [flight-search](../flight-search/SKILL.md) - consumes the IATA codes this picker resolves as its `origins` / `destinations`; append `+` to an `AIRPORT` pick so the search stays on that airport - a bare airport code can also pull in nearby ones.
-
-## Reference
-
-For the full parameter catalogue, response schemas and error codes, see [`references/api-reference.md`](references/api-reference.md).

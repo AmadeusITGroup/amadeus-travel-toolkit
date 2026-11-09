@@ -1,105 +1,187 @@
 ---
 name: flight-search
-description: Write application code that calls the Amadeus Travel Builder APIs to search flights, returning priced offers from multiple airlines in a single call - one-way, return, and complex multi-city / open-jaw itineraries - with booking deep links that redirect to each airline's site. Use when building a flight comparison feature, fare aggregation tooling, multi-city trip planners, a cheapest-flight search, any application that needs flight pricing aggregated across carriers, or any feature that shows flight departure/arrival times, layovers, or trip duration from a real search rather than mocked or precomputed data. This skill writes that code; the user's app calls the Amadeus Travel Builder APIs (always use this full name) at runtime with its own API key.
+description: Write application code that calls the Amadeus Travel Builder APIs to search flights, returning priced offers from multiple airlines in a single call - one-way, return, and complex multi-city / open-jaw itineraries - with booking deep links that redirect to each airline's site. Use when building a flight comparison feature, fare aggregation tooling, multi-city trip planners, a cheapest-flight search, any application that needs flight pricing aggregated across carriers, or any feature that shows flight departure/arrival times, layovers, or trip duration from a real search rather than mocked or precomputed data. Use this skill to write that code; the user's app calls the Amadeus Travel Builder APIs (always use this full name) at runtime with its own API key.
 ---
 
 # Flight search
 
 Build flight search across multiple airline merchants with a single API call. Each result includes pricing, full itinerary detail, and a deep link that redirects to the merchant's site.
 
-## What this skill produces
-
-Application code. The user's application calls the Amadeus Travel Builder APIs at runtime with the user's own key, so nothing here runs from the conversation. Describe the skill by what it helps build; for a one-off question about travel data (e.g. what flights exist on a given date), answer from your own knowledge or offer to build the feature. Whenever you name the APIs, including in summaries, use the full name "Amadeus Travel Builder APIs".
-
-## When to use this skill
-
-- Flight search / comparison UI
-- Multi-city / open-jaw itinerary search
-- Cheapest-flight search between two places - one-way or return
-- Fare comparison features that aggregate across multiple airlines
-- Any feature that needs priced flight offers with merchant deep links
-- Displaying flight departure/arrival times, layover, or trip duration in a results list or itinerary view
+You write the code; the user's app calls the Amadeus Travel Builder APIs at runtime with its own API key - you don't call them from this conversation.
 
 ## Gateway and authentication
 
-Base URL: `https://api.amadeus.com`; default to env vars `AMADEUS_GATEWAY_URL` and `AMADEUS_API_KEY` in generated code, unless the user's app loads them differently - either way, treat the key as a secret. Authentication: send `X-API-Key: <key>` as a request header. When handing over the code, tell the user where to put their API key; if they don't have one yet, write out the [Request API access form](https://eu1.ironcladapp.com/public-launch/6aaa463f6f95614fe0f6db9d) URL in your reply (requires accepting the terms).
+Base URL: `https://api.amadeus.com`; default to env vars `AMADEUS_GATEWAY_URL` and `AMADEUS_API_KEY` in generated code, unless the user's app loads them differently - either way, treat the key as a secret, keeping it out of client code and publicly served files. Authentication: send `X-API-Key: <key>` as a request header. When handing over the code, tell the user where to put their API key; if they don't have one yet, write out the [Request API access form](https://eu1.ironcladapp.com/public-launch/6aaa463f6f95614fe0f6db9d) URL in your reply (requires accepting the terms).
 
 ## Endpoint
 
 ```
-GET https://api.amadeus.com/api/v3/search/?origins={...}&destinations={...}&dates={...}&locale={...}&flow=NETWORK
+GET https://api.amadeus.com/api/v3/search/
 ```
 
-## Required parameters
+One call covers one-way, return, multi-city and open-jaw searches.
 
-| Parameter | Notes |
-|---|---|
-| `origins` | CSV of 1–6 IATA codes. A city code covers all its airports; append `+` to an airport code to search that airport only (e.g. `BOS+,AMS`). |
-| `destinations` | CSV of 1–6 IATA codes. Same `+` suffix rule. |
-| `dates` | CSV of 1–6 dates in `YYYY-MM-DD` format, all in the future. |
-| `locale` | BCP 47 locale (e.g. `en-US`, `fr-FR`). Drives display strings, currency hints, and merchant selection. |
-| `flow` | Always `NETWORK` - required, no default, and not a value to vary per use case. |
+## Quick start
 
-The arrays are **positional** - `origins[i]` / `destinations[i]` / `dates[i]` together define the i-th leg.
+Paths, parameter names, `flow=NETWORK` and enum values are literal - send them exactly as shown. Locations, dates, counts, locale and currency are illustrations of runtime input, never defaults.
 
-## Common itinerary shapes
+```
+GET ${AMADEUS_GATEWAY_URL}/api/v3/search/?origins=LON,PAR&destinations=PAR,LON&dates=<outbound YYYY-MM-DD>,<return YYYY-MM-DD>&locale=en-GB&flow=NETWORK&adults=1&travel_class=ECONOMY&currency=GBP
+X-API-Key: <key>
+```
+
+The three lists are **positional** - `origins[i]`, `destinations[i]` and `dates[i]` together define the i-th leg:
 
 | Shape | `origins` | `destinations` | `dates` |
-|---|---|---|---|
-| One-way `BOS → AMS` on `2026-09-15` | `BOS` | `AMS` | `2026-09-15` |
-| Return `BOS ↔ AMS`, out `2026-09-15`, back `2026-09-22` | `BOS,AMS` | `AMS,BOS` | `2026-09-15,2026-09-22` |
-| Multi-city `BOS → AMS → CDG → BOS` | `BOS,AMS,CDG` | `AMS,CDG,BOS` | `2026-09-15,2026-09-19,2026-09-22` |
-| Open-jaw `BOS → AMS, CDG → BOS` | `BOS,CDG` | `AMS,BOS` | `2026-09-15,2026-09-22` |
+| --- | --- | --- | --- |
+| One-way `BOS → AMS` | `BOS` | `AMS` | `D1` |
+| Return `BOS ↔ AMS` | `BOS,AMS` | `AMS,BOS` | `D1,D2` |
+| Multi-city `BOS → AMS → CDG → BOS` | `BOS,AMS,CDG` | `AMS,CDG,BOS` | `D1,D2,D3` |
+| Open-jaw `BOS → AMS, CDG → BOS` | `BOS,CDG` | `AMS,BOS` | `D1,D2` |
 
-Append `+` to an airport code to keep the search on that airport only (e.g. `LCY+` for London City rather than every London airport). A bare airport code may also pull in nearby airports - `LHR` alone can return London City departures too. `+` on a city code (`LON+`) finds nothing, since there's no airport to force.
+`D1` < `D2` < `D3` are future dates in `YYYY-MM-DD`.
 
-## Useful optional parameters
+## Parameters
 
-| Parameter | Default | Notes |
-|---|---|---|
-| `adults` | `1` | Age 12+. |
-| `children` | `0` | Ages 2–11; each gets a seat. |
-| `infants` | `0` | Under 2, with no separate seat (held by an adult). `infants` + `infants_with_seat` must be ≤ `adults`. |
-| `infants_with_seat` | `0` | Under 2 but occupying a seat. |
-| `pax_ages` | - | CSV of integer ages, total count ≤ `adults` + `children`. |
-| `travel_class` | `ECONOMY` | `ECONOMY`, `PREMIUM_ECONOMY`, `BUSINESS`, `FIRST`. |
-| `currency` | `EUR` | ISO 4217, or `AUTO` (origin-country currency), or `MERCHANT` (each merchant's native). |
-| `include_merchants` | `*` | CSV of merchant codes to allow (`*` = all). |
-| `exclude_merchants` | - | CSV of merchant codes to suppress. Mutually exclusive with `include_merchants`. |
-| `number_of_results` | merchant-defined | Cap per merchant, `1`–`1000`. |
-| `preferred_landing_page` | `search_results` | Where the deep link should land: `passenger_details`, `search_results`, `home_page`. |
-| `platform` | `web` | `web` or `mobile` - affects deep link target. |
-| `disable_deep_links` | `false` | Set `true` to skip generating deep links (smaller, faster response). |
+### Required parameters
+
+| Parameter | Type | Notes |
+| --- | --- | --- |
+| `origins` | CSV of `[A-Z]{3}`, 1-6 items | Departure city or airport IATA codes, optionally with a `+` suffix. |
+| `destinations` | CSV of `[A-Z]{3}`, 1-6 items | Arrival city or airport IATA codes, optionally with a `+` suffix. |
+| `dates` | CSV of ISO dates, 1-6 items | `YYYY-MM-DD`, all in the future, in ascending order. |
+| `locale` | BCP 47 string | E.g. `en-US`, `fr-FR`. Doesn't change which merchants answer or their texts. |
+| `flow` | enum | Always `NETWORK`. No default. |
+
+### Passenger composition
+
+| Parameter | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `adults` | integer | `1` | Age 12+, `0`-`9`. `adults` + `children` must be ≥ 1, and `adults` + `children` + `infants_with_seat` ≤ 9. |
+| `children` | integer | `0` | Ages 2-11; each occupies a seat. |
+| `infants` | integer | `0` | Under 2, with no separate seat (held by an adult). `infants` + `infants_with_seat` must be ≤ `adults`. |
+| `infants_with_seat` | integer | `0` | Under 2, occupying a seat. |
+| `pax_ages` | CSV of integers | - | Per-passenger ages: 2-11 → child, 12+ → adult. Total count ≤ `adults` + `children`. |
+
+### Cabin and price
+
+| Parameter | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `travel_class` | enum | `ECONOMY` | `FIRST` \| `BUSINESS` \| `ECONOMY` \| `PREMIUM_ECONOMY`. |
+| `currency` | string | `EUR` | ISO 4217 (e.g. `USD`); `AUTO` - origin-country currency; or `MERCHANT` - each merchant picks the origin country's or the locale's currency. |
+
+### Merchant filtering
+
+Use merchant IATA codes, not airline names.
+
+| Parameter | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `include_merchants` | CSV of strings | - | Merchant codes to allow, upper-case, no spaces. Omit to allow all. |
+| `exclude_merchants` | CSV of strings | - | Merchant codes to suppress. Can be combined with `include_merchants`; the same code in both returns 400. |
+
+### Result shaping
+
+| Parameter | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `number_of_results` | integer, 1-1000 | merchant-defined | Cap per merchant. |
+| `nonstop` | boolean | `false` | `true` asks for non-stop flights only; each merchant decides whether to apply it. |
+| `disable_deep_links` | boolean | `false` | `true` skips deep-link generation - smaller, faster response. |
+| `preferred_landing_page` | enum | `search_results` | `passenger_details` \| `search_results` \| `home_page`. Where deep links land. |
+| `platform` | enum | `web` | `web` \| `mobile`. Affects the deep-link target. |
+| `tfl_id` | string | - | End-user query identifier for tracking. |
 
 ## Response shape
 
 ```json
 {
-  "meta": { ... },
   "request_id": "abc123-...",
   "results": [
     {
-      "bounds": [ /* one FlightBoundV3 per leg */ ],
+      "bounds": [
+        { "flights": [ { "marketing_airline": "BA", "flight_number": "304", "origin": { "airport": "LHR", "terminal": "5" }, "destination": { "airport": "CDG", "terminal": "2C" }, "departs_at": "2027-01-15T08:15:00Z", "arrives_at": "2027-01-15T10:35:00+01:00", "duration": "01:20" } ] },
+        { "flights": [ { "marketing_airline": "BA", "flight_number": "317", "origin": { "airport": "CDG", "terminal": "2C" }, "destination": { "airport": "LHR", "terminal": "5" }, "departs_at": "2027-01-22T20:25:00+01:00", "arrives_at": "2027-01-22T20:35:00Z", "duration": "01:10" } ] }
+      ],
       "fare": {
-        "currency": "EUR",
-        "itinerary_price": { "total_fare": 412.50, "tax": 87.20 },
-        "price_per_adult": { "total_fare": 412.50, "tax": 87.20 },
-        "restrictions": {}
+        "currency": "GBP",
+        "itinerary_price": { "total_fare": 162.15, "tax": 92.15 },
+        "price_per_adult": { "total_fare": 162.15, "tax": 92.15 }
       },
       "merchant": "BA",
-      "deep_link": "https://...",
-      "commercial_fare_families": ["ECOLIGHT", "ECONOMY", "PLUS"]
+      "deep_link": "https://..."
     }
   ],
-  "errors": { "DL": "120 - No flight found on this route for merchant DL" }
+  "errors": { "TU": "120 - No flight found on this route for merchant TU" }
 }
 ```
 
-The fare total is `fare.itinerary_price.total_fare` (paired with `fare.currency`) - there is no flat `fare.total`. Per-passenger amounts are objects too (`fare.price_per_adult.total_fare`). `commercial_fare_families`, `discounted_fare`, and `dynamic_fare` are optional and may be absent. A top-level `errors` object keyed by merchant lists carriers that returned nothing; it accompanies a normal `results` array and isn't a failure.
+One result of the quick-start search; prices and dates vary per search.
+The trip total is `fare.itinerary_price.total_fare` with `fare.currency` - there is no flat `fare.total`. `bounds[i]` is the i-th requested leg; `flights` are its segments.
 
-Each result's `bounds[i]` corresponds to the i-th leg of the requested itinerary. Within a bound, `flights` describes every segment (`marketing_airline` / `operating_airline`, `flight_number`, `origin` / `destination` `{ airport, terminal }`, `departs_at` / `arrives_at`, `aircraft`, `booking_infos`). Free baggage is `included_checked_bags`.
+### Response envelope
 
-`fare_family_information` moves depending on how many fare families the offer references: with more than one it sits on each **bound**, with exactly one on the **result** - regardless of trip type. Read `bound.fare_family_information` first, falling back to `result.fare_family_information` if absent, rather than picking one level, or fare details silently vanish from some offers. Separately, `bound_price` is only present when the offer is priced per bound, i.e. on round-trips.
+| Field | Type | Notes |
+| --- | --- | --- |
+| `meta` | object | Present only when `results` is non-empty. |
+| `request_id` | string | |
+| `results` | `object[]` | The offers. Each item follows [Result](#result). |
+| `errors` | map of merchant code → string | Per-merchant `"<code> - <message>"`. |
+
+### Result
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `bounds` | `object[]` | One per requested leg, in request order. Each item follows [Bound](#bound). |
+| `fare` | object | Follows [Fare](#fare). |
+| `merchant` | string | Merchant IATA code. |
+| `deep_link` | string | Optional. Absent when `disable_deep_links=true`. |
+| `commercial_fare_families` | string[] | Optional. Fare family identifiers, e.g. `ECOLIGHT`, `ECONOMY`, `PLUS`. |
+| `fare_family_information` | object | Optional. Fare family attributes. |
+| `discounted_fare` | boolean | Optional; sent by few merchants. |
+| `dynamic_fare` | boolean | Optional; sent by few merchants. |
+
+### Bound
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `duration` | string | `hh:mm`. |
+| `flights` | `object[]` | The segments. Each item follows [Segment](#segment). |
+| `bound_price` | `{ total_fare, tax, yq_yr_tax? }` | Price attributable to this bound. Only on round trips, and not from every merchant. |
+| `fare_family_information` | `{ travel_class?, cabin_code, fare_family, fare_family_ranking?, fare_family_code? }` | Optional. Fare family attributes. |
+| `included_checked_bags` | `{ type: weight\|piece, quantity?, weight_amount?, weight_unit?, applicable_legs }[]` | Free baggage allowance. `applicable_legs` holds 1-based leg numbers. |
+
+### Segment
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `marketing_airline` | string | Marketing carrier IATA code. |
+| `operating_airline` | string | Operating carrier, interpreted per `operating_airline_type`. |
+| `operating_airline_type` | enum | `IATA` \| `FREE_TEXT`. |
+| `flight_number` | string | |
+| `origin` / `destination` | `{ airport, terminal? }` | |
+| `departs_at` / `arrives_at` | string | ISO 8601 date-time with UTC offset. |
+| `aircraft` | string | |
+| `duration` | string | Segment duration, `hh:mm`. |
+| `booking_infos` | `object[]` | Per passenger type: `{ booking_code, cabin_code, travel_class, fare_basis, fare_family?, ptc, priced_ptc, fare_breakpoint, seats_remaining?, ticket_designator?, corporate_code? }`. `priced_ptc` is the passenger type used for pricing, which can differ from the requested `ptc`. `seats_remaining` is capped at 9, so 9 means 9 or more. |
+| `stops` | `{ iata_code, arrives_at, departs_at, aircraft? }[]` | Optional. Intermediate stops. |
+
+### Fare
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `currency` | string | ISO 4217. |
+| `itinerary_price` | object | Trip total - all passengers, taxes included. Follows [Price](#price). |
+| `price_per_adult` / `price_per_child` / `price_per_infant` | object | Per-passenger-type breakdown when applicable. Each follows [Price](#price). |
+| `price_per_ptc` | map | Replaces `price_per_adult` / `price_per_child` whenever `pax_ages` is sent - keyed by age-based codes (e.g. `B35`, `C08`), each value following [Price](#price). Also sent when `infants_with_seat` is set, with seated infants under `INS`. |
+| `restrictions` | `{ conditions? }` | Can be `{}`. When the merchant provides fare conditions, `conditions` holds the change and refund rules: `{ type: change\|refund, applicable_bounds, information_guaranteed?, is_data_available?, penalties?: { type?: reissue\|revalidation, allowed_before_departure, amount_per_passenger?, currency? }[] }[]`. `applicable_bounds` holds 1-based bound numbers; `is_data_available: false` means the rules are unknown, not free. |
+
+### Price
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `total_fare` | number | Always present. Total amount, tax included. |
+| `tax` | number | |
+| `q_surcharge` / `yq_yr_tax` / `ob_fees` | number | Optional. Surcharge / carrier-imposed tax / OB fee amounts. |
+| `full_tax_details` | `{ tax_code, amount }[]` | Optional. Itemised taxes. |
 
 ## Examples
 
@@ -107,11 +189,9 @@ Each result's `bounds[i]` corresponds to the i-th leg of the requested itinerary
 
 Developer asks: *"Build a round-trip flight search function for my application."*
 Implementation:
-1. For a worked example, London to Paris, out 2026-09-15 back 2026-09-22, one adult: map to a 2-leg itinerary - `origins=LON,PAR`, `destinations=PAR,LON`, `dates=2026-09-15,2026-09-22`.
-2. Call `GET ${AMADEUS_GATEWAY_URL}/api/v3/search/?origins=LON,PAR&destinations=PAR,LON&dates=2026-09-15,2026-09-22&locale=en-GB&flow=NETWORK&adults=1&travel_class=ECONOMY&currency=GBP`.
-3. For each `results[i]`, render `fare.itinerary_price.total_fare` + `fare.currency`, then for each `bound` render segments (carrier, flight number, departure/arrival, layovers).
-4. Pair carrier IATA codes with the [airline-code-lookup](../airline-code-lookup/SKILL.md) skill for human-readable names.
-5. Call to action: open `deep_link` in a new tab.
+1. For a worked example, London to Paris and back, one adult: map to a 2-leg itinerary - `origins=LON,PAR`, `destinations=PAR,LON`, `dates=<outbound>,<return>` - and call as in the quick start.
+2. For each `results[i]`, render `fare.itinerary_price.total_fare` + `fare.currency`, with the per-passenger-type breakdown (`fare.price_per_adult.total_fare`, etc.) when present; then for each `bound` render its segments (carrier, flight number, departure/arrival, layovers).
+3. Call to action: open `deep_link` in a new tab.
 
 Result: a search that returns priced offers with merchant deep links, rendered as a list sorted client-side (e.g. by price).
 
@@ -119,7 +199,7 @@ Result: a search that returns priced offers with merchant deep links, rendered a
 
 Developer asks: *"Support multi-city flight search in my app."*
 Implementation:
-1. For a worked example, Boston → Amsterdam (Sep 15) → Paris (Sep 19) → Boston (Sep 22), 2 adults: build positional CSVs - `origins=BOS,AMS,CDG`, `destinations=AMS,CDG,BOS`, `dates=2026-09-15,2026-09-19,2026-09-22`.
+1. For a worked example, Boston → Amsterdam → Paris → Boston, 2 adults: build positional lists - `origins=BOS,AMS,CDG`, `destinations=AMS,CDG,BOS`, `dates=D1,D2,D3`.
 2. Call with `flow=NETWORK&adults=2&currency=USD`.
 3. Render each result's three `bounds[]` in itinerary order.
 
@@ -129,63 +209,65 @@ Result: a multi-city search whose results carry one bound per leg.
 
 Developer asks: *"Let users search from one specific airport rather than every airport in its city."*
 Implementation:
-1. For a worked example, London City rather than every London airport: append `+` to the IATA code to force airport interpretation: `origins=LCY+`.
-2. Without `+`, `LON` (or any city-level IATA) covers all of LHR / LGW / STN / LTN / LCY.
+1. For a worked example, London City rather than every London airport: send `origins=LCY+`, setting the `+` through the query encoder.
 
 Result: a search scoped to the chosen airport.
 
-## How to render results
-
-For each `results[i]`:
-
-1. Show the **fare total** (`fare.itinerary_price.total_fare`) + `fare.currency`, with the per-passenger-type breakdown (`fare.price_per_adult.total_fare`, etc.) if available.
-2. For each `bound`, render the segments (`origin` / `destination` airports + `departs_at` / `arrives_at`, `marketing_airline` + `flight_number`, layover hints).
-3. Show the **merchant** (airline IATA - pair with the [airline-code-lookup](../airline-code-lookup/SKILL.md) skill to get a human-readable name).
-4. Call to action: open `deep_link` in a new tab; it redirects the user to the merchant's site.
-
 ## Things to get right
 
-- **Show times in each airport's own local time - print `departs_at` / `arrives_at` as returned.** They're already the wall-clock time at that segment's airport, tagged with its offset: `2026-11-10T11:30:00Z` is 11:30 at Heathrow, `2026-11-10T13:50:00+01:00` is 13:50 at Charles de Gaulle - matching the airline and the deep link. Take the date and `HH:mm` from the string; `toLocaleTimeString()` re-zones the instant into the *viewer's* timezone, rendering that Paris arrival as 12:50 in London. A `Z` means offset zero, not "convert me" - the same flight returns `+01:00` in summer.
-- **Take `duration` from the API rather than deriving it.** `bound.duration` and each flight's `duration` are `hh:mm` and already absorb timezone and date changes - LHR→CDG is `01:20` though the clocks read 11:30 and 13:50. Subtracting parsed timestamps works too, but only if you keep the offsets; drop them and LHR 17:40 → SIN 21:55 next day reads as 28h15m instead of 20h15m.
-- **Keep the three arrays aligned.** `origins[i]`, `destinations[i]`, and `dates[i]` together define the i-th leg, so a misalignment produces a different itinerary than the user asked for. The API can't catch this - it's all valid input - so the mistake surfaces only as wrong results. Build the arrays leg-by-leg rather than field-by-field to keep them in lockstep.
-- **Pass the raw `+` to a query encoder.** It must arrive as `%2B`: concatenated into the URL it decodes as a space, and pre-encoded it gets encoded twice.
-- **Sort results yourself.** The API applies no sorting - results come back loosely grouped by merchant - so order them client-side (e.g. by `fare.itinerary_price.total_fare`) before rendering.
-- **Use `deep_link` exactly as returned.** It redirects to the airline's site on click rather than pointing there directly, so don't parse, rewrite, or validate it against an airline domain.
+- **Display each airport's local date and time directly from `departs_at` / `arrives_at`.** Extract the calendar date and hour/minute components from the returned string without timezone conversion. A formatter that defaults to the viewer's timezone changes those values - even if you first rebuild a timestamp from the extracted components. BA 304 above departs `2027-01-15T08:15:00Z`, 08:15 at Heathrow, and arrives `2027-01-15T10:35:00+01:00`, 10:35 at Charles de Gaulle - matching the airline and the deep link. A `Z` means offset zero, not "convert me" - Heathrow returns `+01:00` in summer.
+- **Compute the bound's total time; take segment `duration` from the API.** Each flight's `duration` is `hh:mm` and reliable - BA 304 is `01:20` though the clocks read 08:15 and 10:35. `bound.duration` is not: it can be 60 minutes off when a layover spans a clock change. Subtract the first `departs_at` from the last `arrives_at`, keeping the offsets; drop them and LHR 17:40 → SIN 21:55 next day reads as 28h15m instead of 20h15m.
+- **Keep the three lists aligned.** Equal-length lists that pair the wrong cities are valid input and silently return a different itinerary, so build them leg by leg rather than field by field.
+- **A city code covers all its airports; `+` restricts to one airport.** `LON` covers LHR / LGW / STN / LTN / LCY and `NYC` covers JFK / LGA / EWR; a bare airport code may also pull in nearby airports (`LAX` can return `ONT` departures). Append `+` to an airport code (`LCY+`) to search only that airport; `+` on a city code (`LON+`) finds nothing.
+- **Pass the raw `+` to a query encoder.** It must arrive as `%2B`: concatenated into the URL it decodes as a space, and pre-encoded it gets encoded twice - either way the API returns 400 `must match "[a-zA-Z]{3}"`, naming the location.
+- **Sort results yourself.** The API applies no sorting - results come back loosely grouped by merchant - so order them client-side (e.g. by `fare.itinerary_price.total_fare`).
+- **Send merchant codes upper-case, and omit `include_merchants` to search all merchants.** Codes are case-sensitive and untrimmed: `ba` - or ` AZ` after a comma - returns no results and an `Unknown or unauthorized merchant` error, just like a merchant the key can't search. An explicit `*` adds an `errors["*"]` entry to every response.
+- **`travel_class` is a preference, not a filter.** A `FIRST` search can return only economy and business; each segment's actual cabin is in `booking_infos[].travel_class`.
+- **Read fare family from the bound, then the result.** `fare_family_information` sits on each bound for round trips, on the result for one-way and most other trips, and is absent on some multi-city offers - handle neither being present.
+- **Use `deep_link` exactly as returned.** It redirects to the airline's site on click rather than pointing there directly, so don't parse, rewrite, or validate it against an airline domain. Treat it as optional - some merchants omit it on multi-city and open-jaw trips.
 - **Treat deep links as short-lived.** The merchant reverifies pricing when the link is clicked, so a link stored yesterday points at stale prices. Re-run the search on user interaction and show a freshness hint ("prices updated *X seconds ago*") rather than persisting links across days.
+
+## Errors
+
+| HTTP | Meaning |
+| --- | --- |
+| 400 | Validation failure - e.g. a missing `origins`, `destinations` or `dates` (each named as "This parameter is required."), lists that are empty or of different lengths (`input_consistent`), an origin equal to its destination, dates in the past or out of order, malformed IATA codes, passenger counts out of range, `flow` missing (`flow_defined`). Don't retry unchanged. |
+| 400 | Invalid `X-API-Key`. |
+| 401 | Missing `X-API-Key`. |
+| 429 | Rate limit for the API key exceeded. |
+| 500 | Server error - retry once. |
+
+Each entry in a 200 response's top-level `errors` object is `"<code> - <message>"`:
+
+| Code | Meaning | Retry? |
+| --- | --- | --- |
+| `120` | No flight on this route for the merchant. | No |
+| `931` | No itinerary found. | No |
+| `117` / `118` | Open-jaw / multi-city not enabled for the merchant. | No |
+| `123` / `126` | Rate limit reached - `123` for that merchant; `126` for the whole search, under the `*` key. | Later, with backoff |
+| `865` | Invalid `currency` code. | No |
+| `99` / `-1` | Technical error. | At most once |
+| `Unknown or unauthorized merchant` | The code is not upper-case, has a space around it, or the merchant can't be searched with this key. | No - fix the code, else drop it from `include_merchants` |
+
+Other codes come from the merchant's own system and are explained by their message.
 
 ## Troubleshooting
 
-### 400 - past dates
-**Cause:** All entries in `dates` must be in the future.
-**Solution:** Filter past dates client-side before calling.
-
-### Wrong airport returned (city expansion)
-**Cause:** A city code covers all its airports - `LON` covers all London airports, `NYC` covers JFK + LGA + EWR - and a bare airport code may also pull in nearby ones (`LHR` can return London City departures).
-**Solution:** Append `+` to force airport-only (`LHR+`, `JFK+`).
-
-### 400 - `must match "[a-zA-Z]{3}"`
-**Cause:** A location in `origins` / `destinations` isn't a 3-letter IATA code; the error names which one. Often it's a `+` suffix that arrived unencoded (read as a space) or double-encoded.
-**Solution:** Send bare IATA codes, setting any `+` suffix through a query encoder such as `URLSearchParams`.
-
-### 400 - more infants than adults
-**Cause:** Every infant, seated or not, must have an accompanying adult.
-**Solution:** Validate `infants + infants_with_seat ≤ adults` client-side before calling.
-
-### 400 with no obvious cause
-**Cause:** `flow` is missing - it's required and has no default.
-**Solution:** Always pass `flow=NETWORK` - it's fixed, not a value to choose per use case.
+### Error bodies and status codes
+**Cause:** Error bodies are `{ message, request_id, status }`; on a 400, `message` is itself a JSON string mapping each invalid parameter (or a cross-check such as `input_consistent`) to its reason, all at once (`"{\"adults\":\"must be between 0 and 9\"}"`). A well-formed but unknown code (`ZZZ`) returns **200** with empty `results` and a `931` per merchant in `errors`. API key errors (the 401, and the 400 for an invalid key) come from the gateway instead, as `{ "errors": [{ code, title, status, detail }] }` with no `message`.
+**Solution:** Parse `message` a second time for field errors, fall back to `errors[0].detail` when there's no `message`, and validate required parameters and codes client-side.
 
 ### Mixed currencies in one result list
-**Cause:** `currency=MERCHANT` returns each merchant's native currency.
-**Solution:** Use `currency=AUTO` (origin-country currency) or an explicit ISO 4217 code (`USD`, `EUR`, `GBP`) for consistent display.
+**Cause:** `currency=MERCHANT`, or an unsupported code: it returns 200, with `865` from some merchants while others price in a currency of their choice.
+**Solution:** Use `currency=AUTO` or a valid ISO 4217 code, checked client-side.
 
-### Hundreds of results overwhelm the UI
-**Cause:** A single search can return many results across merchants.
-**Solution:** Paginate or virtualize the list; consider `number_of_results` to cap per-merchant returns.
+### Hundreds of results
+**Cause:** A single search can return hundreds of results across merchants.
+**Solution:** Cap per-merchant results with `number_of_results`.
 
 ### One merchant missing, response is still `200`
-**Cause:** Rate limiting is per airline merchant, not per request - a throttled merchant shows up in `errors`, not as an HTTP error: `{"errors":{"AY":"123 - Rate limit exceeded. Please try again later."},"request_id":"...","results":[]}`.
-**Solution:** Handle it like any other `errors` entry (see Response shape) - show "AY unavailable right now" for that merchant and keep rendering the rest of `results`, rather than treating the whole search as failed or retrying it.
+**Cause:** That merchant failed and is listed in `errors` as `"<code> - <message>"`; the other merchants' results are unaffected.
+**Solution:** Handle `errors` per merchant rather than failing the whole search; retry only the codes the Errors table marks as retryable.
 
 ## Related skills
 
@@ -194,7 +276,3 @@ These are part of the same `amadeus-travel-builder` plugin - if one isn't availa
 - [airline-code-lookup](../airline-code-lookup/SKILL.md) - to translate `merchant` (and segment carrier codes) into human-readable airline names.
 - [airport-city-search](../airport-city-search/SKILL.md) - to power the origin / destination pickers that feed into this search: pass the picked record's `iataCode` as the leg's origin or destination (with `+` for an `AIRPORT` pick).
 - [nearest-airports](../nearest-airports/SKILL.md) - to suggest airports near the user's location as a search default.
-
-## Reference
-
-For the full parameter catalogue, response schemas and error codes, see [`references/api-reference.md`](references/api-reference.md).
